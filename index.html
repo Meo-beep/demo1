@@ -1,0 +1,804 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flappy Boss — Storm & Power-ups</title>
+    <style>
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(145deg,#11152f,#35204e);
+            font-family: Arial,sans-serif;
+            color: white;
+            user-select: none
+        }
+
+        .game {
+            width: min(94vw,390px);
+            text-align: center
+        }
+
+        h1 {
+            margin: 8px 0;
+            color: #ffe66d;
+            font-size: 30px;
+            text-shadow: 0 3px #9d4edd
+        }
+
+        .tag {
+            display: inline-block;
+            background: #ff4655;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 8px
+        }
+
+        .info {
+            display: flex;
+            justify-content: space-between;
+            margin: 7px 3px 10px;
+            font-weight: bold;
+            font-size: 15px
+        }
+
+        canvas {
+            width: 100%;
+            display: block;
+            border: 4px solid white;
+            border-radius: 15px;
+            box-shadow: 0 0 25px #8b5cf6;
+            touch-action: manipulation
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 12px 25px;
+            border: 0;
+            border-radius: 12px;
+            background: #ffe66d;
+            color: #292044;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer
+        }
+
+        .tip {
+            font-size: 13px;
+            color: #ddd;
+            margin: 9px 0
+        }
+
+        #buffStatus {
+            min-height: 24px;
+            margin: 8px 0;
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffe66d;
+            text-shadow: 0 1px 3px #222
+        }
+
+        .help {
+            margin: 12px 0 22px;
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(255,255,255,.08);
+            text-align: left;
+            font-size: 13px;
+            line-height: 1.8
+        }
+
+
+        .game.hidden { display: none; }
+        .lobby {
+            width: min(94vw, 520px); padding: 18px; text-align: center;
+            border: 1px solid #ffffff24; border-radius: 22px;
+            background: rgba(255,255,255,.08); box-shadow: 0 15px 45px #0004;
+        }
+        .lobby h2 { margin: 0 0 5px; color: #ffb3d7; font-size: 23px; }
+        .lobby p { margin: 0 0 14px; color: #d5cde8; font-size: 13px; }
+        .boss-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+        .boss-card {
+            position: relative; margin: 0; padding: 9px; min-width: 0;
+            border: 2px solid #ffffff24; border-radius: 15px;
+            background: #ffffff09; color: white; font-size: 13px;
+        }
+        .boss-card.selected { border-color: #ff79bf; background: #ff79bf22; box-shadow: 0 0 16px #ff79bf35; }
+        .boss-card img { display: block; width: 100%; height: 100px; object-fit: contain; border-radius: 9px; background: #ffffff08; }
+        .boss-card b { display: block; margin-top: 6px; }
+        .boss-card small { color: #d4c9e8; }
+        .boss-card .check { display: none; position: absolute; top: 6px; right: 6px; width: 23px; height: 23px;
+            border-radius: 50%; background: #ff79bf; color: #24132d; line-height: 23px; font-weight: bold; }
+        .boss-card.selected .check { display: block; }
+        #enterGame { width: 100%; margin-top: 14px; background: linear-gradient(100deg,#ff69b4,#a78bfa); color: #21112d; }
+
+    </style>
+</head>
+<body>
+    <section class="lobby" id="lobby">
+        <h2>👑 Chọn boss của bạn</h2>
+        <p>Chọn một nhân vật để mang vào trận đấu</p>
+        <div class="boss-grid" id="bossGrid">
+            <button class="boss-card selected" data-boss="0"><span class="check">✓</span><img src="boss.jpg" alt="Boss 1"><b>Boss 1</b><small>Trùm mặc định</small></button>
+            <button class="boss-card" data-boss="1"><span class="check">✓</span><img src="boss2.jpg" alt="Boss 2"><b>Boss 2</b><small>Nhân vật số 2</small></button>
+            <button class="boss-card" data-boss="2"><span class="check">✓</span><img src="boss3.jpg" alt="Boss 3"><b>Boss 3</b><small>Nhân vật số 3</small></button>
+            <button class="boss-card" data-boss="3"><span class="check">✓</span><img src="boss4.jpg" alt="Boss 4"><b>Boss 4</b><small>Nhân vật số 4</small></button>
+            <button class="boss-card" data-boss="4"><span class="check">✓</span><img src="boss5.jpg" alt="Boss 5"><b>Boss 5</b><small>Nhân vật số 5</small></button>
+        </div>
+        <button id="enterGame">VÀO GAME ✦</button>
+    </section>
+    <div class="game hidden" id="gamePanel">
+        <h1>🐤 FLAPPY BOSS</h1>
+        <div class="tag" id="mode">☀️ SUNNY MODE</div>
+        <div class="info">
+            <span>⭐ Điểm: <b id="score">0</b></span>
+            <span>🏆 Kỷ lục: <b id="best">0</b></span>
+        </div>
+        <canvas id="game" width="360" height="540"></canvas>
+        <div id="buffStatus">✨ Thu thập vật phẩm để nhận buff!</div>
+        <button id="start">CHƠI NGAY</button>
+        <button id="backLobby" style="margin-left:6px;background:#cbb8ff">ĐỔI BOSS</button>
+        <div class="tip">Bấm / chạm / nhấn SPACE để bay lên</div>
+        <div class="help">
+            <b>🎁 Vật phẩm bí mật</b><br>
+            🍎 Táo — bất tử 5 giây<br>
+            🍗 Đùi gà — thu nhỏ 8 giây<br>
+            🧲 Nam châm — hút vật phẩm trong 6 giây
+        </div>
+    </div>
+
+    <script>
+        "use strict";
+
+        const canvas = document.getElementById("game");
+        const ctx = canvas.getContext("2d");
+        const W = canvas.width, H = canvas.height;
+        const GROUND = 48, PIPE_W = 58, BIRD_SIZE = 42;
+        const $ = id => document.getElementById(id);
+
+        let best = 0;
+        try { best = Number(localStorage.getItem("flappyBossBest") || 0) } catch (e) { }
+        $("best").textContent = best;
+
+        const bossFiles = ["boss.jpg", "boss2.jpg", "boss3.jpg", "boss4.jpg", "boss5.jpg"];
+        const bossImgs = bossFiles.map(src => {
+            const img = new Image();
+            img.src = src;
+            return img;
+        });
+        let selectedBoss = 0;
+
+        const pickupTypes = [
+            { type: "apple", icon: "🍎", label: "BẤT TỬ", duration: 300 },
+            { type: "chicken", icon: "🍗", label: "THU NHỎ", duration: 480 },
+            { type: "magnet", icon: "🧲", label: "NAM CHÂM", duration: 360 },
+            { type: "slow", icon: "🐌", label: "CHẬM THỜI GIAN", duration: 300 }
+        ];
+
+        let bird, pipes, pickups, particles, rain;
+        let score, frame, state, groundOffset, pipeCount;
+        let storm, stormFade, lightning, nextLightning, boltPoints;
+        let effects, pickupTimer;
+
+        function reset() {
+            bird = { x: 85, y: 230, vy: 0 };
+            pipes = [];
+            pickups = [];
+            particles = [];
+            rain = Array.from({ length: 85 }, () => makeRain(true));
+            score = 0;
+            frame = 0;
+            state = "ready";
+            groundOffset = 0;
+            pipeCount = 0;
+            storm = false;
+            stormFade = 0;
+            lightning = 0;
+            nextLightning = 160;
+            boltPoints = [];
+            effects = { invincible: 0, tiny: 0, magnet: 0, slow: 0 };
+            pickupTimer = 200;
+
+            $("score").textContent = "0";
+            $("start").textContent = "CHƠI NGAY";
+            $("mode").textContent = "☀️ SUNNY MODE";
+            updateBuffLabel();
+        }
+
+        function startGame() {
+            if (state === "over") reset();
+            state = "playing";
+            bird.vy = -6.3;
+            $("start").textContent = "BẤM ĐỂ BAY";
+        }
+        function flap() {
+            if (state === "ready") { startGame(); return }
+            if (state === "over") { reset(); startGame(); return }
+            bird.vy = -6.3;
+        }
+
+        canvas.addEventListener("pointerdown", e => { e.preventDefault(); flap() });
+        $("start").addEventListener("click", flap);
+        $("backLobby").addEventListener("click", () => {
+            $("gamePanel").classList.add("hidden");
+            $("lobby").style.display = "block";
+        });
+        document.querySelectorAll(".boss-card").forEach(card => {
+            card.querySelector("img").addEventListener("error", function() {
+                this.style.opacity = ".35";
+                this.alt = "Chưa tìm thấy ảnh";
+            });
+            card.addEventListener("click", () => {
+                selectedBoss = Number(card.dataset.boss);
+                document.querySelectorAll(".boss-card").forEach(c => c.classList.toggle("selected", c === card));
+            });
+        });
+        $("enterGame").addEventListener("click", () => {
+            $("lobby").style.display = "none";
+            $("gamePanel").classList.remove("hidden");
+            reset();
+        });
+        document.addEventListener("keydown", e => {
+            if (e.code === "Space" || e.code === "ArrowUp") {
+                e.preventDefault();
+                if (!e.repeat) flap();
+            }
+        });
+
+        function makeRain(randomY = false) {
+            return {
+                x: Math.random() * W,
+                y: randomY ? Math.random() * H : -10,
+                len: 8 + Math.random() * 13,
+                speed: 5 + Math.random() * 5,
+                drift: 1.5 + Math.random() * 1.5
+            };
+        }
+
+        function addPipe() {
+            const gap = 148; // Giữ khe cột rộng như những cột đầu, kể cả sau cột 10.
+            const margin = 75;
+            const maxTop = H - GROUND - gap - margin;
+            const top = margin + Math.random() * Math.max(1, maxTop - margin);
+            pipeCount++;
+
+            const p = {
+                x: W + 10, top, baseTop: top, gap,
+                phase: Math.random() * Math.PI * 2,
+                amplitude: pipeCount > 10 ? 20 + Math.random() * 35 : 0,
+                frequency: .025 + Math.random() * .015,
+                moving: pipeCount > 10,
+                passed: false,
+                pickupMade: false
+            };
+            pipes.push(p);
+
+            if (pipeCount === 11) {
+                storm = true;
+                $("mode").textContent = "⛈️ STORM MODE";
+            }
+        }
+
+        function spawnPickup() {
+            // Chỉ chọn cột chưa đi qua boss, chưa có vật phẩm.
+            const candidates = pipes.filter(p =>
+                p.x > bird.x + 35 && !p.pickupMade && p.x < W - 20
+            );
+            if (candidates.length === 0) return false;
+
+            // Chọn cột gần boss nhất để vật phẩm không xuất hiện quá xa.
+            const p = candidates[0];
+            p.pickupMade = true;
+
+            const t = pickupTypes[Math.floor(Math.random() * pickupTypes.length)];
+            pickups.push({
+                x: p.x + PIPE_W / 2,
+                y: p.top + p.gap / 2,
+                pipeRef: p,
+                type: t.type,
+                icon: t.icon,
+                label: t.label,
+                duration: t.duration,
+                age: 0,
+                bob: Math.random() * Math.PI * 2,
+                collected: false
+            });
+            return true;
+        }
+
+        function burst(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const s = 1 + Math.random() * 3;
+                particles.push({
+                    x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+                    life: 24, color
+                });
+            }
+        }
+
+        function collectPickup(p) {
+            if (p.type === "apple") {
+                effects.invincible = p.duration;
+                burst(p.x, p.y, "#ff3158");
+            } else if (p.type === "chicken") {
+                effects.tiny = p.duration;
+                burst(p.x, p.y, "#ffad33");
+            } else if (p.type === "magnet") {
+                effects.magnet = p.duration;
+                burst(p.x, p.y, "#bd68ff");
+            } else if (p.type === "slow") {
+                effects.slow = p.duration;
+                burst(p.x, p.y, "#74e6ff");
+            }
+        }
+
+        function updateBuffLabel() {
+            const active = [];
+            if (effects.invincible > 0) active.push("🍎 " + (effects.invincible / 60).toFixed(1) + "s");
+            if (effects.tiny > 0) active.push("🍗 " + (effects.tiny / 60).toFixed(1) + "s");
+            if (effects.magnet > 0) active.push("🧲 " + (effects.magnet / 60).toFixed(1) + "s");
+            if (effects.slow > 0) active.push("🐌 " + (effects.slow / 60).toFixed(1) + "s");
+            $("buffStatus").textContent = active.length
+                ? "BUFF: " + active.join("  |  ")
+                : "✨ Thu thập vật phẩm để nhận buff!";
+        }
+
+        function drawBackground() {
+            const sky = ctx.createLinearGradient(0, 0, 0, H);
+            if (stormFade > 0) {
+                sky.addColorStop(0, "#26344f");
+                sky.addColorStop(.55, "#607b92");
+                sky.addColorStop(1, "#b5d0d7");
+            } else {
+                sky.addColorStop(0, "#62d7ff");
+                sky.addColorStop(1, "#e0f9ff");
+            }
+            ctx.fillStyle = sky;
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.fillStyle = stormFade > 0 ? "rgba(61,76,96,.9)" : "rgba(255,255,255,.9)";
+            for (let i = 0; i < 5; i++) {
+                const x = ((i * 105 - frame * .35) % (W + 100) + W + 100) % (W + 100) - 35;
+                const y = 55 + (i % 3) * 65;
+                ctx.beginPath();
+                ctx.arc(x, y, 16, 0, Math.PI * 2);
+                ctx.arc(x + 20, y - 9, 21, 0, Math.PI * 2);
+                ctx.arc(x + 41, y, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.fillStyle = stormFade > 0 ? "#607e79" : "#91e5a0";
+            ctx.beginPath();
+            ctx.moveTo(0, H - GROUND);
+            for (let x = 0; x <= W; x += 6) {
+                ctx.lineTo(x, H - GROUND - 20 - Math.sin((x + frame * .6) / 40) * 14);
+            }
+            ctx.lineTo(W, H - GROUND);
+            ctx.fill();
+
+            if (stormFade > 0) {
+                ctx.fillStyle = `rgba(15,20,42,${.48 * stormFade})`;
+                ctx.fillRect(0, 0, W, H);
+            }
+        }
+
+        function drawPipe(p) {
+            const bottomY = p.top + p.gap;
+
+            function onePipe(x, y, w, h, capAtBottom) {
+                if (h <= 0) return;
+                ctx.fillStyle = stormFade > 0 ? "#258a55" : "#20b94a";
+                ctx.fillRect(x, y, w, h);
+                ctx.fillStyle = stormFade > 0 ? "#66b58b" : "#70f17b";
+                ctx.fillRect(x + 7, y, 8, h);
+                ctx.fillStyle = stormFade > 0 ? "#15543e" : "#138237";
+                ctx.fillRect(x + w - 8, y, 8, h);
+                ctx.strokeStyle = stormFade > 0 ? "#183c3c" : "#08732e";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x, y, w, h);
+
+                const capH = 19, extra = 7;
+                const capY = capAtBottom ? y + h - capH : y;
+                ctx.fillStyle = stormFade > 0 ? "#318e60" : "#26c54f";
+                ctx.fillRect(x - extra, capY, w + extra * 2, capH);
+                ctx.fillStyle = stormFade > 0 ? "#80bfa0" : "#81f58a";
+                ctx.fillRect(x - extra + 5, capY + 3, 7, capH - 6);
+                ctx.strokeStyle = stormFade > 0 ? "#183c3c" : "#08732e";
+                ctx.strokeRect(x - extra, capY, w + extra * 2, capH);
+            }
+            onePipe(p.x, 0, PIPE_W, p.top, true);
+            onePipe(p.x, bottomY, PIPE_W, H - GROUND - bottomY, false);
+        }
+
+        function drawBird() {
+            const size = effects.tiny > 0 ? BIRD_SIZE * .6 : BIRD_SIZE;
+            ctx.save();
+            ctx.translate(bird.x, bird.y);
+            ctx.rotate(Math.max(-.45, Math.min(.9, bird.vy * .055)));
+
+            if (effects.invincible > 0) {
+                ctx.strokeStyle = `rgba(255,239,90,${.7 + .25 * Math.sin(frame * .3)})`;
+                ctx.lineWidth = 4;
+                ctx.shadowColor = "#ffe66d";
+                ctx.shadowBlur = 18;
+                ctx.beginPath();
+                ctx.arc(0, 0, size * .72, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+            if (effects.magnet > 0) {
+                ctx.strokeStyle = "rgba(206,147,216,.85)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, size * .9 + Math.sin(frame * .15) * 3, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = "rgba(0,0,0,.15)";
+            ctx.beginPath();
+            ctx.ellipse(2, 5, size * .55, size * .52, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#fff";
+            ctx.beginPath();
+            ctx.arc(0, 0, size / 2 + 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+            ctx.clip();
+            const bossImg = bossImgs[selectedBoss];
+            if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
+                ctx.drawImage(bossImg, -size / 2, -size / 2, size, size);
+            } else {
+                ctx.fillStyle = "#ffcf43";
+                ctx.fillRect(-size / 2, -size / 2, size, size);
+                ctx.fillStyle = "#342447";
+                ctx.font = `bold ${size * .62}px Arial`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("B", 0, 1);
+            }
+            ctx.restore();
+
+            ctx.fillStyle = "#ff8b32";
+            ctx.beginPath();
+            ctx.moveTo(size * .38, -size * .05);
+            ctx.lineTo(size * .72, size * .1);
+            ctx.lineTo(size * .38, size * .22);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = "#a64b17";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.strokeStyle = effects.invincible > 0 ? "#ffe66d" : "#573b57";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, size / 2 + 1, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawPickups() {
+            for (const p of pickups) {
+                // Tọa độ được cập nhật từ cột; chỉ nhún nhẹ để dễ thấy.
+                const bob = Math.sin(frame * .09 + p.bob) * 2;
+                const colors = {
+                    apple: "#ff3158",
+                    chicken: "#ff9d20",
+                    magnet: "#a64dff"
+                };
+                ctx.save();
+                ctx.translate(p.x, p.y + bob);
+
+                // Quầng sáng và nền trắng giúp icon tương phản với mọi nền.
+                ctx.shadowColor = colors[p.type];
+                ctx.shadowBlur = 16;
+                ctx.fillStyle = "#ffffff";
+                ctx.beginPath();
+                ctx.arc(0, 0, 23, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = colors[p.type];
+                ctx.beginPath();
+                ctx.arc(0, 0, 19, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.font = "27px 'Apple Color Emoji','Segoe UI Emoji',Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(p.icon, 0, 1);
+
+                // Lấp lánh
+                ctx.fillStyle = "#fff";
+                ctx.beginPath();
+                ctx.arc(-20, -17, 3, 0, Math.PI * 2);
+                ctx.arc(20, 14, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function drawGround() {
+            ctx.fillStyle = stormFade > 0 ? "#746c67" : "#d9b879";
+            ctx.fillRect(0, H - GROUND, W, GROUND);
+            ctx.fillStyle = stormFade > 0 ? "#497a61" : "#45d65c";
+            ctx.fillRect(0, H - GROUND, W, 10);
+            ctx.fillStyle = stormFade > 0 ? "#5b534f" : "#a78045";
+            for (let x = -(groundOffset % 28); x < W; x += 28) {
+                ctx.fillRect(x, H - GROUND + 20, 14, 5);
+                ctx.fillRect(x + 12, H - GROUND + 34, 12, 4);
+            }
+        }
+
+        function updateStorm() {
+            stormFade += ((storm ? 1 : 0) - stormFade) * .025;
+            if (!storm) return;
+
+            for (const r of rain) {
+                r.x -= r.drift;
+                r.y += r.speed;
+                if (r.y > H || r.x < -20) {
+                    r.x = Math.random() * W + 20;
+                    r.y = -10 - Math.random() * 80;
+                    r.speed = 5 + Math.random() * 5;
+                }
+            }
+
+            if (lightning > 0) lightning--;
+            else {
+                nextLightning--;
+                if (nextLightning <= 0) {
+                    lightning = 3 + Math.floor(Math.random() * 4);
+                    nextLightning = 130 + Math.random() * 240;
+                    boltPoints = [];
+                    let x = 65 + Math.random() * 220, y = 0;
+                    boltPoints.push({ x, y });
+                    for (let i = 0; i < 6; i++) {
+                        x += (Math.random() - .5) * 45;
+                        y += 25 + Math.random() * 22;
+                        boltPoints.push({ x, y });
+                    }
+                }
+            }
+        }
+
+        function drawStorm() {
+            if (!storm || stormFade < .05) return;
+
+            ctx.save();
+            ctx.strokeStyle = `rgba(220,238,255,${.45 * stormFade})`;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            for (const r of rain) {
+                ctx.moveTo(r.x, r.y);
+                ctx.lineTo(r.x - r.drift * 2, r.y + r.len);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            if (lightning > 0) {
+                const flash = lightning > 2 ? .65 : .25;
+                ctx.fillStyle = `rgba(230,242,255,${flash * stormFade})`;
+                ctx.fillRect(0, 0, W, H);
+
+                ctx.save();
+                ctx.strokeStyle = `rgba(255,255,255,${.95 * stormFade})`;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = "#d8eeff";
+                ctx.shadowBlur = 18;
+                ctx.beginPath();
+                boltPoints.forEach((point, i) => {
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                });
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function drawParticles() {
+            for (const p of particles) {
+                ctx.globalAlpha = Math.max(0, p.life / 24);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function drawOverlay(title, subtitle) {
+            ctx.fillStyle = "rgba(24,24,50,.78)";
+            ctx.fillRect(25, 175, W - 50, 145);
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(25, 175, W - 50, 145);
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#ffe66d";
+            ctx.font = "bold 25px Arial";
+            ctx.fillText(title, W / 2, 218);
+            ctx.fillStyle = "#fff";
+            ctx.font = "15px Arial";
+            ctx.fillText(subtitle, W / 2, 250);
+            ctx.font = "13px Arial";
+            ctx.fillText("Chạm màn hình để tiếp tục", W / 2, 280);
+        }
+
+        function collide() {
+            const size = effects.tiny > 0 ? BIRD_SIZE * .6 : BIRD_SIZE;
+            const r = size * .36;
+            if (bird.y - r < 0 || bird.y + r > H - GROUND) return true;
+
+            for (const p of pipes) {
+                if (bird.x + r > p.x - 7 && bird.x - r < p.x + PIPE_W + 7) {
+                    if (bird.y - r < p.top || bird.y + r > p.top + p.gap) return true;
+                }
+            }
+            return false;
+        }
+
+        function endGame() {
+            state = "over";
+            if (score > best) {
+                best = score;
+                try { localStorage.setItem("flappyBossBest", String(best)) } catch (e) { }
+                $("best").textContent = best;
+            }
+            $("start").textContent = "CHƠI LẠI";
+        }
+
+        function updateBuffs() {
+            for (const key of Object.keys(effects)) {
+                if (effects[key] > 0) {
+                    effects[key]--;
+                }
+            }
+            updateBuffLabel();
+        }
+
+        function update() {
+            frame++;
+
+            if (state === "playing") {
+                bird.vy += .32;
+                bird.y += bird.vy;
+
+                const baseSpeed = 2.1 + Math.min(score * .055, 1.5);
+                const speed = effects.slow > 0 ? baseSpeed * 0.62 : baseSpeed;
+                groundOffset += speed;
+
+                if (pipes.length === 0 || pipes[pipes.length - 1].x < W - 205) addPipe();
+
+                for (const p of pipes) {
+                    p.x -= speed;
+                    if (p.moving) {
+                        p.phase += p.frequency;
+                        p.top = p.baseTop + Math.sin(p.phase) * p.amplitude;
+                        p.top = Math.max(35, Math.min(H - GROUND - p.gap - 35, p.top));
+                    }
+                    if (!p.passed && p.x + PIPE_W < bird.x) {
+                        p.passed = true;
+                        score++;
+                        $("score").textContent = score;
+                    }
+                }
+
+                // Xóa vật phẩm theo cột nếu cột đã rời màn hình.
+                pipes = pipes.filter(p => p.x > -PIPE_W - 20);
+                pickups = pickups.filter(p => p.pipeRef && p.pipeRef.x > -PIPE_W - 30 && !p.collected);
+
+                pickupTimer--;
+                if (pickupTimer <= 0) {
+                    spawnPickup();
+                    pickupTimer = 210 + Math.random() * 180;
+                }
+
+                for (const p of pickups) {
+                    if (!p.pipeRef) continue;
+
+                    // Luôn căn chính giữa khe hở hiện tại.
+                    p.x = p.pipeRef.x + PIPE_W / 2;
+                    p.y = p.pipeRef.top + p.pipeRef.gap / 2;
+                    p.age++;
+
+                    // Nam châm kéo vật phẩm về phía boss.
+                    if (effects.magnet > 0) {
+                        const dx = bird.x - p.x, dy = bird.y - p.y;
+                        const dist = Math.hypot(dx, dy);
+                        if (dist < 145 && dist > 0) {
+                            p.x += dx / dist * 3.5;
+                            p.y += dy / dist * 3.5;
+                        }
+                    }
+
+                    const size = effects.tiny > 0 ? BIRD_SIZE * .6 : BIRD_SIZE;
+                    if (Math.hypot(p.x - bird.x, p.y - bird.y) < size * .65 + 13) {
+                        collectPickup(p);
+                        p.collected = true;
+                    }
+                }
+
+                pickups = pickups.filter(p => !p.collected && p.pipeRef && p.pipeRef.x > -PIPE_W - 30);
+
+                for (const p of particles) {
+                    p.x += p.vx; p.y += p.vy; p.life--;
+                }
+                particles = particles.filter(p => p.life > 0);
+
+                updateBuffs();
+                updateStorm();
+
+                // Bất tử cho phép xuyên cột, nhưng vẫn chặn boss khỏi rơi qua đất.
+                if (effects.invincible <= 0 && collide()) {
+                    endGame();
+                } else if (effects.invincible > 0 && bird.y + BIRD_SIZE * .3 > H - GROUND) {
+                    bird.y = H - GROUND - BIRD_SIZE * .3;
+                    bird.vy = Math.min(0, bird.vy);
+                }
+            } else {
+                updateStorm();
+            }
+        }
+
+        function draw() {
+            drawBackground();
+            for (const p of pipes) drawPipe(p);
+            drawPickups();
+            drawGround();
+            drawStorm();
+            drawParticles();
+            drawBird();
+
+            if (state === "ready") drawOverlay("FLAPPY BOSS", "Sẵn sàng né cột chưa?");
+            else if (state === "over") drawOverlay("TOANG RỒI!", "Điểm của mày: " + score);
+        }
+
+        // Khóa mô phỏng ở 60 bước/giây để tốc độ gameplay nhất quán
+        // giữa điện thoại FPS cao và laptop FPS thấp.
+        let lastTime = 0;
+        let accumulator = 0;
+        const STEP = 1000 / 60;
+
+        function loop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+
+            let delta = timestamp - lastTime;
+            lastTime = timestamp;
+            // Tránh nhảy xa nếu tab bị treo hoặc chuyển nền.
+            delta = Math.min(delta, 100);
+            accumulator += delta;
+
+            while (accumulator >= STEP) {
+                update();
+                accumulator -= STEP;
+            }
+
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        reset();
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
